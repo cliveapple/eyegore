@@ -1,3 +1,4 @@
+import time
 import pygame, sys, random
 from pygame.locals import *
 import time as t
@@ -23,7 +24,8 @@ testX = 10
 testY = 10
 jumpsfx = pygame.mixer.Sound('Audiofx/jumpsound.wav')
 hurtfx = pygame.mixer.Sound('Audiofx/eyegorehurt.wav')
-
+X=50
+Y=50
 
 def show_lives(x, y):
     score = font.render("Lives : " + str(lives), True, (255, 255, 255))
@@ -31,17 +33,29 @@ def show_lives(x, y):
 
 
 def show_timer(x, y):
-    stime = font.render("Time :" + str(counter), True, (255, 0, 0))
+    stime = font.render("Time :" + str(counter), True, (255, 255, 255))
     win.blit(stime, (x, y))
+
+
+def show_complete(X,Y):
+    text3 = font1.render(str("LEVEL COMPLETE"),True,(255,0,0))
+    win.blit(text3, (X,Y))
+
+def show_game_over(X,Y):
+    text4 = font1.render(str("GAME OVER"),True,(255,0,0))
+    win.blit(text4, (X,Y))
+
+
 
 count = "TIME"
 counter, text = 600, ''.ljust(0)
-pygame.time.set_timer(pygame.USEREVENT, 100)
-font1 = pygame.font.Font('freesansbold.ttf', 32)
+pygame.time.set_timer(pygame.USEREVENT, 80)
+font1 = pygame.font.Font('freesansbold.ttf', 100)
 clock = pygame.time.Clock()
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height):
         pygame.sprite.Sprite.__init__(self)
+        self.cooldown = False
         self.x = x
         self.y = y
         self.width = width
@@ -52,12 +66,14 @@ class Player(pygame.sprite.Sprite):
         self.right = False
         self.walkCount = 0
         self.jumpCount = 10
-        self.lives = 0
+        self.lives = 5
         self.hitbox = (self.x, self.y, 100, 170)
         self.image = pygame.image.load('folderimages\\eyegore.png')
         self.image2 = pygame.image.load('folderimages\\eyegore_hurt.png')
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image2)
+
+
 
     def draw(self, win):
         if self.walkCount + 1 >= 5:
@@ -73,17 +89,24 @@ class Player(pygame.sprite.Sprite):
             self.hitbox = (self.x + 110, self.y, self.width, self.height)
             pygame.draw.rect(win, (255, 255, 0), self.hitbox, 1)
 
+
+
+
     def hit(self):
+        global lives
         if man.hitbox[0] < enemy.x + 140 < man.hitbox[0] + man.hitbox[2] and \
-                man.hitbox[1] < enemy.y + 140 < man.hitbox[1] + man.hitbox[3]:
-            win.blit(self.image2, (man.x, man.y))
-            global lives
-            self.lives = lives
-            lives -= 1
-            #t.sleep(0.5)
-            hurtfx.play()
-            if man.lives <= 0:
-                print('game over')
+           man.hitbox[1] < enemy.y + 140 < man.hitbox[1] + man.hitbox[3]:
+            if self.cooldown == False:
+                self.cooldown = True  # Enable the cooldown
+                pygame.time.set_timer(hit_cooldown, 1000)  # Resets cooldown in 1 second
+                lives -= 1
+                win.blit(self.image2, (man.x, man.y))
+                hurtfx.play()
+                if lives == 0:
+                    show_game_over(X,Y)
+                    pygame.display.update()
+                    t.sleep(2)
+                    exit()
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -108,7 +131,6 @@ class Enemy(pygame.sprite.Sprite):
 
     def draw(self, win):
         self.move()
-
         if self.walkCount + 1 >= 30:
             self.walkCount = 0
         elif self.left > 2:
@@ -176,6 +198,8 @@ def intro():
 
         pygame.display.update()
         for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                quit(2)
             if event.type == MOUSEBUTTONDOWN:
                 if event.button == 1:
                     return pygame.display.update()
@@ -183,14 +207,15 @@ def intro():
 
 run2 = True
 while run1 or run2:
+    hit_cooldown = pygame.USEREVENT + 1
     for event in pygame.event.get():
+        if event.type == hit_cooldown:
+            man.cooldown = False
+            pygame.time.set_timer(hit_cooldown, 0)
         if event.type == pygame.QUIT:
-            if event.dict.get('caption') == 'Window 1':
-                running1 = False
-            elif event.dict.get('caption') == 'Window 2':
-                running2 = False
+            quit(2)
     counter -=1
-    text = str(counter) + str(count) if counter > 0 else "Level complete"
+    text = str(counter) + str(count)
     clock.tick(60)
     if run1:
         # Update and render window 1
@@ -199,15 +224,18 @@ while run1 or run2:
         pygame.display.update()
 
     if run2:
+        if counter == 0:
+            show_complete(X,Y)
+            pygame.display.update()
+            t.sleep(2)
+            exit()
         # Update and render window 2
         clock.tick(60)
         redrawGameWindow()# Fill with blue color
 
 
         pygame.display.update()
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            run = False
+
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT] and man.x > man.vel:
